@@ -1,0 +1,12 @@
+
+# BOOTLOADER STAGE 1
+none
+# BOOTLOADER STAGE 2
+fix the crash when initializing fat12 system(bootloader/stage2/fat.c line 69)
+
+# KERNEL
+64 bit mode
+support for FAT32 system
+
+# Makefile
+add the debugger(may help with the fat12 issue)

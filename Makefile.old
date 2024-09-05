@@ -1,0 +1,66 @@
+rwildcard = $(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
+
+# Can compile for both 32-bit and 64-bit
+ASM=nasm
+
+# Both i386 and i686 are 32-bit, but i686 has newer
+# instruction set support, though still compatible with older one
+GCC_x86=i686-elf-gcc
+LD_x86=i686-elf-ld
+GCC_x64=x86_64-elf-gcc
+LD_x64=x86_64-elf-ld
+# 
+GDB_x86=i686-elf-gdb
+GDB_x64=i686-elf-gdb
+qemu=qemu-system-x86_64
+
+bootloader_stage1_asm_files := $(call rwildcard,bootloader/stage1/,*.asm)
+
+bootloader_stage2_asm_files := $(call rwildcard,bootloader/stage2/,*.asm)
+bootloader_stage2_c_files   := $(call rwildcard,bootloader/stage2/,*.c)
+
+bootloader_stage2_objects := $(patsubst bootloader/stage2/%.asm, obj/bootloader/stage2/%.o, $(bootloader_stage2_asm_files))
+bootloader_stage2_objects += $(patsubst bootloader/stage2/%.c,   obj/bootloader/stage2/%.o, $(bootloader_stage2_c_files))
+bootloader_stage2_debug_assembly := $(patsubst bootloader/stage2/%.c, debug/bootloader/stage2/%.s, $(bootloader_stage2_c_files))
+all: floppy
+
+floppy: build/os_floppy.img
+
+build/os_floppy.img: build/bootloader/stage1/bootloader_stage1.bin build/bootloader/stage2/bootloader_stage2.bin
+	@dd if=/dev/zero of=$@ bs=512 count=2880 >/dev/null
+	@mkfs.fat -F 12 -n "SKLOS" $@ >/dev/null
+	@dd if=build/bootloader/stage1/bootloader_stage1.bin of=$@ conv=notrunc >/dev/null
+	@mcopy -i $@ build/bootloader/stage2/bootloader_stage2.bin "::stage2.bin"
+	@echo "--> Created: " $@
+	
+build/bootloader/stage1/bootloader_stage1.bin: $(bootloader_stage1_asm_files)
+	@mkdir -p $(@D)
+	$(ASM) -f bin -o $@ $<
+
+build/bootloader/stage2/bootloader_stage2.bin: $(bootloader_stage2_objects) $(bootloader_stage2_debug_assembly) bootloader/stage2/linker.ld	
+	@mkdir -p $(@D)
+	$(LD_x86) -T bootloader/stage2/linker.ld -g -nostdlib -L/usr/lib/gcc/i686-elf/11.2.0/ -lgcc -o $@ $(bootloader_stage2_objects)
+	
+obj/bootloader/stage2/%.o: bootloader/stage2/%.asm
+	@mkdir -p $(@D)
+	$(ASM) -f elf -g -o $@ $<
+
+obj/bootloader/stage2/%.o: bootloader/stage2/%.c
+	@mkdir -p $(@D)
+	$(GCC_x86) -Ibootloader/stage2 -std=c99 -g -ffreestanding -nostdlib -c -o $@ $<
+
+debug/bootloader/stage2/%.s: bootloader/stage2/%.c
+	@mkdir -p $(@D)
+	$(GCC_x86) -Ibootloader/stage2 -std=c99 -g -ffreestanding -nostdlib -S -o $@ $<
+
+clean: clean_bootloader
+
+clean_bootloader:
+	rm -rf obj build debug.log bx_enh_dbg.ini
+
+rebuild: clean all
+
+debug: all
+	bochs -qf .bochsrc -dbglog debug.log
+run: all 
+	bochs -qf .run_bochsrc -dbglog debug.log

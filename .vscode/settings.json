@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "*.s": "nasm",
+        "pci.h": "c",
+        "x86.h": "c",
+        "textout.h": "c",
+        "util.h": "c",
+        "sysinfo.h": "c",
+        "*.asm": "nasm"
+    }
+}

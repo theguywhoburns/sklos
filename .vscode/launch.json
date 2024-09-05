@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    // You can try to make a custom launch .json yourself if you want
+    // cause i go to college(late classes lol)
+    "configurations": [
+        {
+            "name": "Debug Bootloader",
+            "type": "gdb",
+            "request": "attach",
+            "executable": "make ",
+            "targetArchitecture": "i686",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
